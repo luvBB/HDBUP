@@ -67,20 +67,24 @@ def select_piece_size(total_size):
 
 # Function to create a .torrent file
 def create_torrent(input_path):
-    total_size = get_total_size(input_path)
-    piece_size = select_piece_size(total_size)
+    try:
+        total_size = get_total_size(input_path)
+        piece_size = select_piece_size(total_size)
 
-    if os.path.isfile(input_path) or os.path.isdir(input_path):
-        output_file = os.path.join(os.getcwd(),
-                                   os.path.basename(input_path.rstrip('/\\')).replace('.mkv', '') + ".torrent")
-        command = [
-            'torrenttools', 'create', input_path,
-            '--piece-size', piece_size,
-            '--output', output_file
-        ]
+        if os.path.isfile(input_path) or os.path.isdir(input_path):
+            output_file = os.path.join(os.getcwd(),
+                                       os.path.basename(input_path.rstrip('/\\')).replace('.mkv', '') + ".torrent")
+            command = [
+                'torrenttools', 'create', input_path,
+                '--piece-size', piece_size,
+                '--output', output_file
+            ]
 
-        subprocess.run(command)
-        return output_file
+            subprocess.run(command, check=True)
+            return output_file
+    except subprocess.CalledProcessError as e:
+        print(f"Error during torrent creation: {e}")
+        return None
 
 # ===============================
 # TVDB Integration
@@ -146,18 +150,18 @@ def extract_season_episode(filename):
 # Input direct path to file (.mkv) or folder to be uploaded
 input_path = input("Input folder or mkv file path to upload: ")
 if os.path.isfile(input_path) and input_path.endswith('.mkv'):
+    # Dacă este un fișier .mkv, lucrează cu acel fișier
     mkv_files = [os.path.basename(input_path)]
     file_location = os.path.dirname(input_path)
 elif os.path.isdir(input_path):
+    # Dacă este un folder, verifică dacă conține fișiere .mkv
     file_location = input_path
-    files = os.listdir(file_location)
-    mkv_files = [file for file in files if file.endswith('.mkv')]
+    mkv_files = [file for file in os.listdir(file_location) if file.endswith('.mkv')]
+    if not mkv_files:
+        print("No mkv files in this folder.")
+        exit()
 else:
     print("Invalid path.")
-    exit()
-
-if not mkv_files:
-    print("No mkv files in this path.")
     exit()
 
 selected_file = random.choice(mkv_files)
@@ -339,8 +343,12 @@ except FileNotFoundError as e:
 # Upload URL to HDBits.org
 upload_url = "https://hdbits.org/upload/upload"
 
-# Create .torrent file
-torrent_file = create_torrent(os.path.join(file_location, selected_file))
+# Dacă input-ul este un folder, creează torrent pentru întregul folder
+if os.path.isdir(input_path):
+    torrent_file = create_torrent(file_location)  # Creează .torrent pentru folderul care conține fișierele mkv
+else:
+    # Dacă este un fișier .mkv, creează torrent pentru acel fișier individual
+    torrent_file = create_torrent(os.path.join(file_location, mkv_files[0]))
 
 if not torrent_file:
     print("Unable to create .torrent file.")
