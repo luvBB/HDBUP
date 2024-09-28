@@ -346,20 +346,34 @@ if not torrent_file:
     print("Unable to create .torrent file.")
     exit()
 
-# Preparing payload to HDBits.org
+# Function to clean torrent name
+def clean_torrent_name(torrent_name):
+    # Regular expression to remove everything between Sxx or SxxExx and resolution (ex: 720p)
+    cleaned_name = re.sub(r'(S\d{2}(E\d{2})?)\..*?\.(\d{3,4}p)', r'\1.\3', torrent_name)
+
+    # Remove everything between resolution (ex: 720p) and WEB-DL
+    cleaned_name = re.sub(r'(\d{3,4}p)\..*?\.(WEB-DL)', r'\1.\2', cleaned_name)
+
+    return cleaned_name
+
+# Modifică payload-ul pentru upload-ul pe HDBits.org
+torrent_name = os.path.basename(torrent_file).replace('.torrent', '')  # Numele torrentului original
+cleaned_torrent_name = clean_torrent_name(torrent_name)  # Curăță numele torrentului
+
+# Pregătește payload-ul pentru upload-ul pe HDBits.org
 upload_payload = {
-    'name': os.path.basename(torrent_file).replace('.torrent', ''),  # Numele torrentului
+    'name': cleaned_torrent_name,  # Numele torrentului curățat
     'category': '2',  # TV
-    'codec': '5',     # HEVC
+    'codec': '1',     # H.264
     'medium': '6',    # WEB-DL
     'origin': '0',    # Undefined
     'exclusive': '0', # Non-exclusive
-    'descr': description,  # images.txt
-    'techinfo': techinfo,  # mediainfo.txt
-    'tvdb': tvdb_id,       # TVDB ID
-    'tvdb_season': season if season else '',  # Season
-    'tvdb_episode': episode if episode else '',  # Episode
-    'anidb_id': ''         # AniDB empty
+    'descr': description,  # Descriere din images.txt
+    'techinfo': techinfo,  # Informațiile tehnice din mediainfo.txt
+    'tvdb': tvdb_id,       # ID-ul TVDB preluat automat
+    'tvdb_season': season if season else '',  # Completează sezonul
+    'tvdb_episode': episode if episode else '',  # Completează episodul
+    'anidb_id': ''         # AniDB gol
 }
 
 # Torrent file to upload
