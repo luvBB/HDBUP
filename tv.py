@@ -340,7 +340,7 @@ except FileNotFoundError as e:
 upload_url = "https://hdbits.org/upload/upload"
 
 # Create .torrent file
-torrent_file = create_torrent(file_location)
+torrent_file = create_torrent(os.path.join(file_location, selected_file))
 
 if not torrent_file:
     print("Unable to create .torrent file.")
