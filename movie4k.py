@@ -199,37 +199,65 @@ if response_img.status_code == 200:
 else:
     print(f"Error connecting to HDBits.org: {response_img.status_code}")
 
-# Images URLs
+# Image URLs
 uploaded_image_urls = []
 
-# Upload screenshots to img.hdbits.org
-for screenshot_filename in screenshot_filenames:
-    with open(screenshot_filename, 'rb') as img_file:
-        files = {'images_files[]': img_file}
-        data = {
-            'thumbsize': 'w300',
-            'galleryoption': '1',
-            'galleryname': 'My Screenshots'
-        }
-        response = session.post(upload_url_img, files=files, data=data)
+# Extrage numele fișierului sau al folderului din calea de input
+if os.path.isdir(input_path):
+    gallery_name = os.path.basename(os.path.normpath(input_path))  # Numele folderului
+elif os.path.isfile(input_path):
+    gallery_name = os.path.basename(input_path).replace('.mkv', '')  # Numele fișierului fără extensia .mkv
+else:
+    print("Invalid input path.")
+    exit()
 
-        # Verifică dacă cererea a avut succes
-        if response.status_code == 200:
-            print(f"Successfully uploaded {screenshot_filename}")
-            soup = BeautifulSoup(response.text, 'html.parser')
-            bbcode_textarea = soup.find('textarea', onclick="this.select();")
-            if bbcode_textarea:
-                image_url = bbcode_textarea.text
-                uploaded_image_urls.append(image_url)
-            else:
-                print(f"Error: BBCode textarea not found for {screenshot_filename}")
+print(f"Gallery name will be: {gallery_name}")
+
+# Prepare all image files for upload in one request
+files = {}
+open_files = []  # List to keep track of open file objects
+try:
+    for i, screenshot_filename in enumerate(screenshot_filenames):
+        img_file = open(screenshot_filename, 'rb')
+        open_files.append(img_file)  # Keep track of open files
+        # Add all images to the 'files' dictionary with unique keys
+        files[f'images_files[{i}]'] = img_file
+
+    # Prepare the data for gallery creation and image upload
+    data = {
+        'thumbsize': 'w300',            # Thumbnail size
+        'galleryoption': '1',           # Create gallery
+        'galleryname': gallery_name     # Numele galeriei bazat pe calea inputului
+    }
+
+    # Make a single POST request to upload all images at once
+    response = session.post(upload_url_img, files=files, data=data)
+
+    # Checking success
+    if response.status_code == 200:
+        print(f"Successfully created gallery '{gallery_name}' and uploaded all images")
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Extract the BBCode from the correct textarea
+        bbcode_textarea = soup.find('textarea', onclick="this.select();")
+        if bbcode_textarea:
+            bbcode = bbcode_textarea.text.strip()  # Get BBCode from the textarea
+            uploaded_image_urls.append(bbcode)
         else:
-            print(f"Failed to upload {screenshot_filename}. Status code: {response.status_code}")
+            print("Error: BBCode textarea not found")
+    else:
+        print(f"Failed to upload images. Status code: {response.status_code}")
+finally:
+    # Close all open files to avoid any file descriptor issues
+    for img_file in open_files:
+        img_file.close()
 
-
-with open("images.txt", "w") as file:
-    bbcode = ' '.join(uploaded_image_urls)  # Toate într-o singură linie, separate prin spațiu
-    file.write(bbcode)
+# Save BBCode links directly from the textarea to images.txt
+if uploaded_image_urls:
+    with open("images.txt", "w") as file:
+        # Join all BBCode links into one string, separated by spaces or new lines if necessary
+        bbcode = ' '.join(uploaded_image_urls)
+        file.write(bbcode)
 
 print("BBCode links saved in images.txt")
 
